@@ -1,0 +1,284 @@
+<div class="dashboard-container" *ngIf="dashboardData$ | async as dashboardData">
+  <!-- Header Section -->
+  <div class="dashboard-header">
+    <h1 class="dashboard-title">
+      <mat-icon>dashboard</mat-icon>
+      Dashboard
+    </h1>
+    <div class="dashboard-actions">
+      <button mat-raised-button color="primary" (click)="addExpense()">
+        <mat-icon>add</mat-icon>
+        Add Expense
+      </button>
+      <button mat-raised-button color="accent" (click)="addIncome()">
+        <mat-icon>attach_money</mat-icon>
+        Add Income
+      </button>
+      <button mat-icon-button (click)="refreshData()" [disabled]="isLoading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="stats-grid">
+    <mat-card class="stat-card total-expenses">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>payment</mat-icon>
+          Total Expenses
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="stat-value">{{ formatCurrency(dashboardData.stats.totalExpenses) }}</div>
+        <div class="stat-subtitle">This month</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card total-income">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>attach_money</mat-icon>
+          Total Income
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="stat-value">{{ formatCurrency(dashboardData.stats.totalIncome) }}</div>
+        <div class="stat-subtitle">This month</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card net-amount" [ngClass]="{'positive': dashboardData.stats.netAmount > 0, 'negative': dashboardData.stats.netAmount < 0}">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>account_balance</mat-icon>
+          Net Amount
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="stat-value">{{ formatCurrency(dashboardData.stats.netAmount) }}</div>
+        <div class="stat-subtitle">Income - Expenses</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card avg-daily">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>today</mat-icon>
+          Daily Average
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="stat-value">{{ formatCurrency(dashboardData.stats.averageDaily) }}</div>
+        <div class="stat-subtitle">Per day spending</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Budget Alerts -->
+  <div class="alerts-section" *ngIf="dashboardData.budgetAlerts.length > 0">
+    <h2>Budget Alerts</h2>
+    <div class="alerts-grid">
+      <mat-card *ngFor="let alert of dashboardData.budgetAlerts" class="alert-card" [ngClass]="alert.alertType">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon [color]="getAlertColor(alert.alertType)">{{ getAlertIcon(alert.alertType) }}</mat-icon>
+            {{ alert.categoryName }}
+          </mat-card-title>
+          <button mat-icon-button (click)="dismissAlert(alert.budgetId)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ alert.message }}</p>
+          <div class="alert-progress">
+            <mat-progress-bar 
+              mode="determinate" 
+              [value]="alert.percentage"
+              [color]="getAlertColor(alert.alertType)">
+            </mat-progress-bar>
+            <span class="progress-text">
+              {{ formatCurrency(alert.spentAmount) }} / {{ formatCurrency(alert.budgetAmount) }}
+              ({{ alert.percentage.toFixed(1) }}%)
+            </span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-section">
+    <mat-tab-group (selectedTabChange)="onTabChange($event.index)">
+      
+      <!-- Category Breakdown Chart -->
+      <mat-tab label="Category Breakdown">
+        <div class="chart-container">
+          <mat-card>
+            <mat-card-header>
+              <mat-card-title>Expenses by Category</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="chart-wrapper">
+                <canvas baseChart
+                  [data]="categoryPieChartData"
+                  [options]="categoryPieChartOptions"
+                  [type]="pieChartType"
+                  (chartClick)="onChartClick($event)"
+                  (chartHover)="onChartHover($event)">
+                </canvas>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Monthly Trend Chart -->
+      <mat-tab label="Monthly Trend">
+        <div class="chart-container">
+          <mat-card>
+            <mat-card-header>
+              <mat-card-title>Monthly Expense Trend</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="chart-wrapper">
+                <canvas baseChart
+                  [data]="monthlyTrendChartData"
+                  [options]="monthlyTrendChartOptions"
+                  [type]="lineChartType"
+                  (chartClick)="onChartClick($event)"
+                  (chartHover)="onChartHover($event)">
+                </canvas>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Budget vs Actual -->
+      <mat-tab label="Budget vs Actual">
+        <div class="chart-container">
+          <mat-card>
+            <mat-card-header>
+              <mat-card-title>Budget Comparison</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="chart-wrapper">
+                <canvas baseChart
+                  [data]="budgetChartData"
+                  [options]="budgetChartOptions"
+                  [type]="barChartType"
+                  (chartClick)="onChartClick($event)"
+                  (chartHover)="onChartHover($event)">
+                </canvas>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </div>
+
+  <!-- Bottom Section -->
+  <div class="bottom-section">
+    
+    <!-- Recent Transactions -->
+    <div class="recent-transactions">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Recent Transactions</mat-card-title>
+          <button mat-button color="primary" (click)="navigateToExpenses()">
+            View All
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="transaction-list">
+            <div *ngFor="let expense of dashboardData.recentExpenses" class="transaction-item">
+              <div class="transaction-icon">
+                <mat-icon [style.color]="getCategoryColor(expense.categoryId)">
+                  {{ getCategoryIcon(expense.categoryId) }}
+                </mat-icon>
+              </div>
+              <div class="transaction-details">
+                <div class="transaction-title">{{ expense.title }}</div>
+                <div class="transaction-date">{{ expense.date | date:'MMM d, y' }}</div>
+              </div>
+              <div class="transaction-amount" [ngClass]="{'expense': expense.amount < 0, 'income': expense.amount > 0}">
+                {{ formatCurrency(expense.amount) }}
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="dashboardData.recentExpenses.length === 0" class="no-transactions">
+            <mat-icon>receipt_long</mat-icon>
+            <p>No recent transactions</p>
+            <button mat-raised-button color="primary" (click)="addExpense()">
+              Add Your First Expense
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Top Categories -->
+    <div class="top-categories">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Top Categories</mat-card-title>
+          <button mat-button color="primary" (click)="navigateToCategories()">
+            Manage
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="category-list">
+            <div *ngFor="let category of dashboardData.stats.categoryBreakdown.slice(0, 5)" class="category-item">
+              <div class="category-info">
+                <div class="category-name">{{ category.categoryName }}</div>
+                <div class="category-amount">{{ formatCurrency(category.totalAmount) }}</div>
+              </div>
+              <div class="category-progress">
+                <mat-progress-bar 
+                  mode="determinate" 
+                  [value]="category.percentage"
+                  color="accent">
+                </mat-progress-bar>
+                <span class="percentage-text">{{ category.percentage.toFixed(1) }}%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="dashboardData.stats.categoryBreakdown.length === 0" class="no-categories">
+            <mat-icon>category</mat-icon>
+            <p>No expense categories yet</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+  </div>
+
+  <!-- Quick Actions FAB -->
+  <div class="fab-container">
+    <button mat-fab color="primary" (click)="addExpense()" aria-label="Add expense">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
+
+</div>
+
+<!-- Empty State -->
+<div *ngIf="!(dashboardData$ | async)" class="empty-state">
+  <mat-icon>dashboard</mat-icon>
+  <h2>Welcome to Expense Tracker</h2>
+  <p>Start by adding your first expense to see your dashboard</p>
+  <button mat-raised-button color="primary" (click)="addExpense()">
+    <mat-icon>add</mat-icon>
+    Add Expense
+  </button>
+</div>

@@ -1,0 +1,99 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav
+    #drawer
+    class="sidenav"
+    fixedInViewport
+    [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
+    [mode]="(isHandset$ | async) ? 'over' : 'side'"
+    [opened]="(isHandset$ | async) === false">
+    
+    <mat-toolbar color="primary" class="sidenav-header">
+      <mat-icon class="app-icon">account_balance_wallet</mat-icon>
+      <span class="app-title">Expense Tracker</span>
+    </mat-toolbar>
+    
+    <mat-nav-list>
+      <a 
+        mat-list-item 
+        *ngFor="let item of navigationItems" 
+        [routerLink]="item.route"
+        routerLinkActive="active-link"
+        (click)="onMenuItemClick(item)"
+        [attr.aria-label]="item.description">
+        
+        <mat-icon matListIcon>{{item.icon}}</mat-icon>
+        <span matLine>{{item.title}}</span>
+        <span matLine class="item-description">{{item.description}}</span>
+      </a>
+      
+      <mat-divider></mat-divider>
+      
+      <!-- Data Management Section -->
+      <h3 matSubheader>Data Management</h3>
+      
+      <a mat-list-item (click)="onExportData()" class="action-item">
+        <mat-icon matListIcon>download</mat-icon>
+        <span matLine>Export Data</span>
+        <span matLine class="item-description">Download your data as JSON</span>
+      </a>
+      
+      <a mat-list-item (click)="onImportData()" class="action-item">
+        <mat-icon matListIcon>upload</mat-icon>
+        <span matLine>Import Data</span>
+        <span matLine class="item-description">Upload and restore your data</span>
+      </a>
+      
+      <a mat-list-item (click)="onClearData()" class="action-item danger">
+        <mat-icon matListIcon>clear_all</mat-icon>
+        <span matLine>Clear All Data</span>
+        <span matLine class="item-description">Remove all expenses and reset</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+  
+  <mat-sidenav-content>
+    <mat-toolbar color="primary" class="main-toolbar">
+      <button
+        type="button"
+        aria-label="Toggle sidenav"
+        mat-icon-button
+        (click)="drawer.toggle()"
+        *ngIf="isHandset$ | async">
+        <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
+      </button>
+      
+      <span class="toolbar-title">Personal Expenses Tracker</span>
+      
+      <span class="toolbar-spacer"></span>
+      
+      <!-- Quick actions -->
+      <button mat-icon-button [matMenuTriggerFor]="quickActionsMenu" aria-label="Quick actions">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      
+      <mat-menu #quickActionsMenu="matMenu">
+        <button mat-menu-item (click)="onExportData()">
+          <mat-icon>download</mat-icon>
+          <span>Export Data</span>
+        </button>
+        
+        <button mat-menu-item (click)="onImportData()">
+          <mat-icon>upload</mat-icon>
+          <span>Import Data</span>
+        </button>
+        
+        <mat-divider></mat-divider>
+        
+        <button mat-menu-item (click)="onClearData()" class="danger-menu-item">
+          <mat-icon>clear_all</mat-icon>
+          <span>Clear All Data</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+    
+    <!-- Main content area -->
+    <div class="main-content">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
